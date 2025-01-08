@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Django stuff
+*.sqlite3  # SQLite database file
+*.log      # Log files
+*.env      # Environment variables file
+db.sqlite3 # Explicit SQLite file if named this way
+
+# Python virtual environment
+myenv/
+venv/
+
+# Static and media files (if generated dynamically)
+static/
+media/
+
+# IDE and editor configurations
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS-specific files
+.DS_Store
+Thumbs.db

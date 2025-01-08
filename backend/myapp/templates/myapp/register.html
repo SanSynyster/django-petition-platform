@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+</head>
+<body>
+    <h1>Register</h1>
+    <form method="post">
+        {% csrf_token %}
+        <label>Email:</label>
+        <input type="email" name="email" required><br>
+
+        <label>Full Name:</label>
+        <input type="text" name="full_name" required><br>
+
+        <label>Date of Birth:</label>
+        <input type="date" name="date_of_birth" required><br>
+
+        <label>Password:</label>
+        <input type="password" name="password" required><br>
+
+        <label>BioID:</label>
+        <input type="text" name="bio_id" required><br>
+
+        <button type="submit">Register</button>
+    </form>
+
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+</body>
+</html>

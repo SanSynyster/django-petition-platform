@@ -1,61 +1,101 @@
+{% load static %}
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <h1>Welcome to your Dashboard</h1>
-    <p>You are logged in as {{ email }}</p>
+    <div class="container mt-4">
+        <h1 class="mb-4">Welcome to your Dashboard</h1>
+        <p class="text-muted">You are logged in as <strong>{{ email }}</strong></p>
 
-    <h2>Your Petitions</h2>
-    <ul>
-        {% for petition in petitions %}
-            <li>
-                <strong>{{ petition.title }}</strong> - {{ petition.status }}
-                <br>
-                {{ petition.content }}
-                <br>
-                Signatures: {{ petition.signatures }}
-                {% if petition.response %}
+        <!-- Flash Messages -->
+        {% if messages %}
+            <div class="mt-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Your Petitions -->
+        <h2 class="mt-4">Your Petitions</h2>
+        <ul class="list-group mt-3">
+            {% for petition in petitions %}
+                <li class="list-group-item">
+                    <strong>{{ petition.title }}</strong> - <span class="badge bg-{{ petition.status|yesno:"success,danger" }}">{{ petition.status }}</span>
                     <br>
-                    <em>Response: {{ petition.response }}</em>
-                {% endif %}
-            </li>
-        {% empty %}
-            <p>You have not created any petitions yet.</p>
-        {% endfor %}
-    </ul>
+                    {{ petition.content }}
+                    <br>
+                    <small>Signatures: {{ petition.signatures }}</small>
+                    {% if petition.response %}
+                        <br>
+                        <em>Response: {{ petition.response }}</em>
+                    {% endif %}
+                </li>
+            {% empty %}
+                <p class="text-muted">You have not created any petitions yet.</p>
+            {% endfor %}
+        </ul>
 
-    <h2>Create a New Petition</h2>
-        <form method="post" action="/create-petition/">
+        <!-- Create a New Petition -->
+        <h2 class="mt-4">Create a New Petition</h2>
+        <form method="post" action="/create-petition/" class="mt-3">
             {% csrf_token %}
-            <label>Title:</label>
-            <input type="text" name="title" required><br>
-            <label>Content:</label>
-            <textarea name="content" required></textarea><br>
-            <button type="submit">Create Petition</button>
+            <div class="mb-3">
+                <label for="title" class="form-label">Title:</label>
+                <input type="text" id="title" name="title" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="content" class="form-label">Content:</label>
+                <textarea id="content" name="content" class="form-control" rows="4" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Petition</button>
         </form>
 
-        <h2>Open Petitions to Sign</h2>
-        <ul>
+        <!-- Open Petitions to Sign -->
+        <h2 class="mt-4">Open Petitions to Sign</h2>
+        <ul class="list-group mt-3">
             {% for petition in open_petitions %}
-                <li>
+                <li class="list-group-item">
                     <strong>{{ petition.title }}</strong>
                     <br>
                     {{ petition.content }}
                     <br>
-                    Signatures: {{ petition.signatures }}
-                    <form method="post" action="/sign-petition/">
+                    <small>Signatures: {{ petition.signatures }}</small>
+                    <form method="post" action="/sign-petition/" class="mt-2">
                         {% csrf_token %}
                         <input type="hidden" name="petition_id" value="{{ petition.id }}">
-                        <button type="submit">Sign Petition</button>
+                        <button type="submit" class="btn btn-success btn-sm">Sign Petition</button>
                     </form>
                 </li>
             {% empty %}
-                <p>No open petitions available for signing.</p>
+                <p class="text-muted">No open petitions available for signing.</p>
             {% endfor %}
         </ul>
 
-    <a href="/logout/">Logout</a>
+        <!-- Logout -->
+        <a href="/logout/" class="btn btn-danger mt-4">Logout</a>
+    </div>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Automatically hide alerts after 5 seconds
+        setTimeout(function() {
+            let alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.classList.add('fade-out');
+                setTimeout(() => alert.remove(), 1000); // Remove the element after animation
+            });
+        }, 5000); // 5 seconds
+    </script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.hashers import make_password, check_password
+from django.contrib import messages
 from .models import Petitioner, Petition, Signature
 
 # --------------------------------------
@@ -20,9 +21,11 @@ def register(request):
 
         # Validation: Check if email or BioID is already registered
         if Petitioner.objects.filter(email=email).exists():
-            return render(request, 'myapp/register.html', {'error': 'Email already registered'})
+            messages.error(request, 'Email already registered.')
+            return render(request, 'myapp/register.html')
         if Petitioner.objects.filter(bio_id=bio_id).exists():
-            return render(request, 'myapp/register.html', {'error': 'BioID already registered'})
+            messages.error(request, 'BioID already registered.')
+            return render(request, 'myapp/register.html')
 
         # Save petitioner to the database
         Petitioner.objects.create(
@@ -32,11 +35,9 @@ def register(request):
             password=password,
             bio_id=bio_id
         )
-
-        # Redirect to the login page after successful registration
+        messages.success(request, 'Registration successful. Please log in.')
         return redirect('login')
 
-    # Render the registration page for GET requests
     return render(request, 'myapp/register.html')
 
 
@@ -56,16 +57,19 @@ def login(request):
         try:
             user = Petitioner.objects.get(email=email)
         except Petitioner.DoesNotExist:
-            return render(request, 'myapp/login.html', {'error': 'Invalid email or password'})
+            messages.error(request, 'Invalid email or password.')
+            return render(request, 'myapp/login.html')
 
         # Validate password
         if check_password(password, user.password):
             request.session['user_id'] = user.id
             request.session['user_email'] = user.email
             request.session['is_admin'] = (email == 'admin@petition.parliament.sr')  # Check admin
+            messages.success(request, 'Login successful.')
             return redirect('admin_dashboard' if request.session['is_admin'] else 'dashboard')
 
-        return render(request, 'myapp/login.html', {'error': 'Invalid email or password'})
+        messages.error(request, 'Invalid email or password.')
+        return render(request, 'myapp/login.html')
 
     return render(request, 'myapp/login.html')
 
@@ -78,7 +82,7 @@ def dashboard(request):
     Petitioner dashboard view with user's petitions and open petitions to sign.
     """
     if not request.session.get('user_id'):
-        return redirect('login')  # Redirect to login if not authenticated
+        return redirect('login')
 
     user_id = request.session.get('user_id')
     user_email = request.session.get('user_email')
@@ -108,12 +112,12 @@ def create_petition(request):
         content = request.POST['content']
         user_id = request.session.get('user_id')
 
-        # Save the petition
         Petition.objects.create(
             title=title,
             content=content,
             petitioner_id=user_id
         )
+        messages.success(request, 'Petition created successfully.')
 
     return redirect('dashboard')
 
@@ -129,19 +133,18 @@ def sign_petition(request):
         petition_id = request.POST.get('petition_id')
         user_id = request.session.get('user_id')
 
-        # Check if the user has already signed the petition
         if Signature.objects.filter(petition_id=petition_id, petitioner_id=user_id).exists():
+            messages.warning(request, 'You have already signed this petition.')
             return redirect('dashboard')
 
-        # Add a new signature
         Signature.objects.create(petition_id=petition_id, petitioner_id=user_id)
 
-        # Increment the petition's signature count
         petition = Petition.objects.get(id=petition_id)
         petition.signatures += 1
         petition.save()
 
-    return redirect('dashboard')
+        messages.success(request, 'Thank you for signing the petition!')
+        return redirect('dashboard')
 
 
 # --------------------------------------
@@ -172,12 +175,12 @@ def close_petition(request):
         petition_id = request.POST.get('petition_id')
         response = request.POST.get('response')
 
-        # Fetch the petition and update its status and response
         petition = get_object_or_404(Petition, id=petition_id)
         petition.status = 'closed'
         petition.response = response
         petition.save()
 
+        messages.success(request, 'Petition closed successfully.')
     return redirect('admin_dashboard')
 
 
@@ -189,4 +192,5 @@ def logout(request):
     Logs out the user by clearing the session.
     """
     request.session.flush()
+    messages.info(request, 'You have been logged out.')
     return redirect('login')

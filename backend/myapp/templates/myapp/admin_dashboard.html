@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+    <h2>All Petitions</h2>
+    <table border="1">
+        <tr>
+            <th>Title</th>
+            <th>Content</th>
+            <th>Status</th>
+            <th>Signatures</th>
+            <th>Response</th>
+            <th>Actions</th>
+        </tr>
+        {% for petition in petitions %}
+        <tr>
+            <td>{{ petition.title }}</td>
+            <td>{{ petition.content }}</td>
+            <td>{{ petition.status }}</td>
+            <td>{{ petition.signatures }}</td>
+            <td>{{ petition.response }}</td>
+            <td>
+                {% if petition.status == 'open' %}
+                <form method="post" action="/close-petition/">
+                    {% csrf_token %}
+                    <input type="hidden" name="petition_id" value="{{ petition.id }}">
+                    <textarea name="response" placeholder="Write a response"></textarea>
+                    <button type="submit">Close Petition</button>
+                </form>
+                {% else %}
+                Closed
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="/logout/">Logout</a>
+</body>
+</html>

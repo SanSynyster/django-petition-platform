@@ -1,7 +1,6 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.hashers import make_password, check_password
-from .models import Petitioner
-from .models import Petition
+from .models import Petitioner, Petition, Signature
 
 # --------------------------------------
 # User Registration View
@@ -13,7 +12,6 @@ def register(request):
     and saves the petitioner to the database.
     """
     if request.method == 'POST':
-        # Extract form data
         email = request.POST['email']
         full_name = request.POST.get('full_name', '')
         date_of_birth = request.POST.get('date_of_birth', '')
@@ -48,6 +46,7 @@ def register(request):
 def login(request):
     """
     Handles user login by authenticating email and password.
+    Differentiates between regular users and admin users.
     """
     if request.method == 'POST':
         email = request.POST['email']
@@ -61,19 +60,18 @@ def login(request):
 
         # Validate password
         if check_password(password, user.password):
-            # Use Django's session framework to log in the user
             request.session['user_id'] = user.id
             request.session['user_email'] = user.email
-            return redirect('dashboard')  # Redirect to the petitioner's dashboard
-        else:
-            return render(request, 'myapp/login.html', {'error': 'Invalid email or password'})
+            request.session['is_admin'] = (email == 'admin@petition.parliament.sr')  # Check admin
+            return redirect('admin_dashboard' if request.session['is_admin'] else 'dashboard')
 
-    # Render the login page for GET requests
+        return render(request, 'myapp/login.html', {'error': 'Invalid email or password'})
+
     return render(request, 'myapp/login.html')
 
 
 # --------------------------------------
-# Petitioner Dashboard View
+# Petitioner Views
 # --------------------------------------
 def dashboard(request):
     """
@@ -82,7 +80,6 @@ def dashboard(request):
     if not request.session.get('user_id'):
         return redirect('login')  # Redirect to login if not authenticated
 
-    # Fetch the logged-in user's details
     user_id = request.session.get('user_id')
     user_email = request.session.get('user_email')
 
@@ -98,12 +95,13 @@ def dashboard(request):
         'open_petitions': open_petitions,
     })
 
+
 def create_petition(request):
     """
     Allows the logged-in user to create a new petition.
     """
     if not request.session.get('user_id'):
-        return redirect('login')  # Redirect to login if not authenticated
+        return redirect('login')
 
     if request.method == 'POST':
         title = request.POST['title']
@@ -117,16 +115,15 @@ def create_petition(request):
             petitioner_id=user_id
         )
 
-    return redirect('dashboard')  # Redirect back to the dashboard
+    return redirect('dashboard')
 
-from .models import Signature
 
 def sign_petition(request):
     """
     Allows the logged-in user to sign a petition.
     """
     if not request.session.get('user_id'):
-        return redirect('login')  # Redirect to login if not authenticated
+        return redirect('login')
 
     if request.method == 'POST':
         petition_id = request.POST.get('petition_id')
@@ -134,7 +131,7 @@ def sign_petition(request):
 
         # Check if the user has already signed the petition
         if Signature.objects.filter(petition_id=petition_id, petitioner_id=user_id).exists():
-            return redirect('dashboard')  # Redirect back if already signed
+            return redirect('dashboard')
 
         # Add a new signature
         Signature.objects.create(petition_id=petition_id, petitioner_id=user_id)
@@ -144,7 +141,46 @@ def sign_petition(request):
         petition.signatures += 1
         petition.save()
 
-    return redirect('dashboard')  # Redirect back to the dashboard
+    return redirect('dashboard')
+
+
+# --------------------------------------
+# Admin Views
+# --------------------------------------
+def admin_dashboard(request):
+    """
+    Admin dashboard for managing petitions.
+    """
+    if not request.session.get('is_admin', False):
+        return redirect('login')
+
+    petitions = Petition.objects.all()
+
+    return render(request, 'myapp/admin_dashboard.html', {
+        'petitions': petitions,
+    })
+
+
+def close_petition(request):
+    """
+    Allows the admin to close a petition and write a response.
+    """
+    if not request.session.get('is_admin', False):
+        return redirect('login')
+
+    if request.method == 'POST':
+        petition_id = request.POST.get('petition_id')
+        response = request.POST.get('response')
+
+        # Fetch the petition and update its status and response
+        petition = get_object_or_404(Petition, id=petition_id)
+        petition.status = 'closed'
+        petition.response = response
+        petition.save()
+
+    return redirect('admin_dashboard')
+
+
 # --------------------------------------
 # User Logout View
 # --------------------------------------
@@ -153,4 +189,4 @@ def logout(request):
     Logs out the user by clearing the session.
     """
     request.session.flush()
-    return redirect('login')  # Redirect to login page
+    return redirect('login')

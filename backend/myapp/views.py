@@ -8,9 +8,7 @@ from .models import Petitioner, Petition, Signature
 # --------------------------------------
 def register(request):
     """
-    Handles the registration of a new petitioner. 
-    Validates email and BioID for uniqueness, hashes the password, 
-    and saves the petitioner to the database.
+    Handles user registration, including validation for unique email and BioID.
     """
     if request.method == 'POST':
         email = request.POST['email']
@@ -19,7 +17,7 @@ def register(request):
         password = make_password(request.POST['password'])
         bio_id = request.POST.get('bio_id', '')
 
-        # Validation: Check if email or BioID is already registered
+        # Validate unique email and BioID
         if Petitioner.objects.filter(email=email).exists():
             messages.error(request, 'Email already registered.')
             return render(request, 'myapp/register.html')
@@ -27,7 +25,7 @@ def register(request):
             messages.error(request, 'BioID already registered.')
             return render(request, 'myapp/register.html')
 
-        # Save petitioner to the database
+        # Create new petitioner
         Petitioner.objects.create(
             email=email,
             full_name=full_name,
@@ -46,63 +44,65 @@ def register(request):
 # --------------------------------------
 def login(request):
     """
-    Handles user login by authenticating email and password.
-    Differentiates between regular users and admin users.
+    Authenticates the user and sets their session.
     """
     if request.method == 'POST':
         email = request.POST['email']
         password = request.POST['password']
 
-        # Validate email
+        # Authenticate user
         try:
             user = Petitioner.objects.get(email=email)
         except Petitioner.DoesNotExist:
             messages.error(request, 'Invalid email or password.')
             return render(request, 'myapp/login.html')
 
-        # Validate password
         if check_password(password, user.password):
+            # Set session data
             request.session['user_id'] = user.id
             request.session['user_email'] = user.email
-            request.session['is_admin'] = (email == 'admin@petition.parliament.sr')  # Check admin
+            request.session['is_admin'] = (email == 'admin@petition.parliament.sr')  # Admin check
             messages.success(request, 'Login successful.')
             return redirect('admin_dashboard' if request.session['is_admin'] else 'dashboard')
 
         messages.error(request, 'Invalid email or password.')
-        return render(request, 'myapp/login.html')
-
     return render(request, 'myapp/login.html')
 
 
 # --------------------------------------
-# Petitioner Views
+# Petitioner Dashboard
 # --------------------------------------
 def dashboard(request):
     """
-    Petitioner dashboard view with user's petitions and open petitions to sign.
+    Displays the user's petitions and open petitions with search functionality.
     """
     if not request.session.get('user_id'):
         return redirect('login')
 
-    user_id = request.session.get('user_id')
-    user_email = request.session.get('user_email')
+    user_id = request.session['user_id']
+    user_email = request.session['user_email']
 
-    # Fetch petitions created by the user
+    # Fetch petitions
     user_petitions = Petition.objects.filter(petitioner_id=user_id)
-
-    # Fetch open petitions not created by the user
     open_petitions = Petition.objects.filter(status='open').exclude(petitioner_id=user_id)
+
+    # Search functionality
+    query = request.GET.get('q', '')
+    if query:
+        user_petitions = user_petitions.filter(title__icontains=query)
+        open_petitions = open_petitions.filter(title__icontains=query)
 
     return render(request, 'myapp/dashboard.html', {
         'email': user_email,
         'petitions': user_petitions,
         'open_petitions': open_petitions,
+        'query': query,
     })
 
 
 def create_petition(request):
     """
-    Allows the logged-in user to create a new petition.
+    Allows the user to create a new petition.
     """
     if not request.session.get('user_id'):
         return redirect('login')
@@ -110,7 +110,7 @@ def create_petition(request):
     if request.method == 'POST':
         title = request.POST['title']
         content = request.POST['content']
-        user_id = request.session.get('user_id')
+        user_id = request.session['user_id']
 
         Petition.objects.create(
             title=title,
@@ -124,56 +124,79 @@ def create_petition(request):
 
 def sign_petition(request):
     """
-    Allows the logged-in user to sign a petition.
+    Allows the user to sign a petition.
     """
     if not request.session.get('user_id'):
         return redirect('login')
 
     if request.method == 'POST':
-        petition_id = request.POST.get('petition_id')
-        user_id = request.session.get('user_id')
+        petition_id = request.POST['petition_id']
+        user_id = request.session['user_id']
 
+        # Check if already signed
         if Signature.objects.filter(petition_id=petition_id, petitioner_id=user_id).exists():
             messages.warning(request, 'You have already signed this petition.')
             return redirect('dashboard')
 
+        # Sign petition
         Signature.objects.create(petition_id=petition_id, petitioner_id=user_id)
-
         petition = Petition.objects.get(id=petition_id)
         petition.signatures += 1
         petition.save()
 
         messages.success(request, 'Thank you for signing the petition!')
-        return redirect('dashboard')
+    return redirect('dashboard')
 
 
 # --------------------------------------
-# Admin Views
+# Admin Dashboard
 # --------------------------------------
 def admin_dashboard(request):
     """
-    Admin dashboard for managing petitions.
+    Displays the admin dashboard with all petitions, including analytics.
     """
     if not request.session.get('is_admin', False):
         return redirect('login')
 
+    # Fetch all petitions
     petitions = Petition.objects.all()
 
+    # Calculate analytics
+    total_petitions = petitions.count()
+    total_open_petitions = petitions.filter(status='open').count()
+    total_closed_petitions = petitions.filter(status='closed').count()
+
+    # Search functionality
+    query = request.GET.get('q', '')
+    if query:
+        petitions = petitions.filter(title__icontains=query)
+
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        petitions = petitions.filter(status=status_filter)
+
+    # Pass analytics and filtered petitions to the template
     return render(request, 'myapp/admin_dashboard.html', {
         'petitions': petitions,
+        'total_petitions': total_petitions,
+        'total_open_petitions': total_open_petitions,
+        'total_closed_petitions': total_closed_petitions,
+        'query': query,
+        'status_filter': status_filter,
     })
 
 
 def close_petition(request):
     """
-    Allows the admin to close a petition and write a response.
+    Allows the admin to close a petition and provide a response.
     """
     if not request.session.get('is_admin', False):
         return redirect('login')
 
     if request.method == 'POST':
-        petition_id = request.POST.get('petition_id')
-        response = request.POST.get('response')
+        petition_id = request.POST['petition_id']
+        response = request.POST['response']
 
         petition = get_object_or_404(Petition, id=petition_id)
         petition.status = 'closed'
@@ -189,7 +212,7 @@ def close_petition(request):
 # --------------------------------------
 def logout(request):
     """
-    Logs out the user by clearing the session.
+    Logs out the user by clearing their session.
     """
     request.session.flush()
     messages.info(request, 'You have been logged out.')

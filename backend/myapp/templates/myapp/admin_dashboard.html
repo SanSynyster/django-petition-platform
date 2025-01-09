@@ -11,8 +11,7 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1>Admin Dashboard</h1>
-        <h2>All Petitions</h2>
+        <h1 class="mb-4">Admin Dashboard</h1>
 
         <!-- Flash Messages -->
         {% if messages %}
@@ -26,8 +25,53 @@
             </div>
         {% endif %}
 
+        <!-- Analytics Section -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h4 class="card-title">Total Petitions</h4>
+                        <p class="display-5">{{ total_petitions }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h4 class="card-title">Open Petitions</h4>
+                        <p class="display-5">{{ total_open_petitions }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h4 class="card-title">Closed Petitions</h4>
+                        <p class="display-5">{{ total_closed_petitions }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter Form -->
+        <form method="get" class="row g-3 mt-4">
+            <div class="col-md-6">
+                <input type="text" name="q" value="{{ query }}" placeholder="Search petitions by title" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                    <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+            </div>
+        </form>
+
         <!-- Petitions Table -->
-        <table class="table table-bordered table-striped mt-3">
+        <table class="table table-bordered table-striped mt-4">
             <thead class="table-dark">
                 <tr>
                     <th>Title</th>
@@ -43,7 +87,13 @@
                     <tr>
                         <td>{{ petition.title }}</td>
                         <td>{{ petition.content }}</td>
-                        <td>{{ petition.status }}</td>
+                        <td>
+                            {% if petition.status == 'open' %}
+                                <span class="badge bg-primary">Open</span>
+                            {% else %}
+                                <span class="badge bg-success">Closed</span>
+                            {% endif %}
+                        </td>
                         <td>{{ petition.signatures }}</td>
                         <td>{{ petition.response|default:"N/A" }}</td>
                         <td>
@@ -52,10 +102,10 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="petition_id" value="{{ petition.id }}">
                                     <textarea name="response" class="form-control mb-2" placeholder="Write a response"></textarea>
-                                    <button type="submit" class="btn btn-primary">Close Petition</button>
+                                    <button type="submit" class="btn btn-primary btn-sm">Close Petition</button>
                                 </form>
                             {% else %}
-                                <span class="badge bg-success">Closed</span>
+                                <span class="badge bg-secondary">No Actions</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -64,7 +114,7 @@
         </table>
 
         <!-- Logout Link -->
-        <a href="/logout/" class="btn btn-danger mt-3">Logout</a>
+        <a href="/logout/" class="btn btn-danger mt-4">Logout</a>
     </div>
 
     <!-- Bootstrap JavaScript -->

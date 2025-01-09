@@ -4,9 +4,27 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from .models import Petitioner, Petition, Signature
 
+# List of valid BioIDs (fill this list with valid BioIDs)
+VALID_BIOIDS = [
+    "K1YL8VA2HG", "V30EPKZQI2", "QJXQOUPTH9", "CET8NUAE09", 
+    "BZW5WWDMUY", "7DMPYAZAP2", "O3WJFGR5WE", "GOYWJVDA8A", 
+    "VQKBGSE3EA", "340B1EOCMG", "D05HPPQNJ4", "SEIQTS1H16", 
+    "6EBQ28A62V", "E7D6YUPQ6J", "CG1I9SABLL", "2WYIM3QCK9",
+    "X16V7LFHR2", "30MY51J1CJ", "BPX8O0YB5L", "49YFTUA96K",
+    "DHKFIYHMAZ", "TLFDFY7RDG", "FH6260T08H", "AT66BX2FXM",
+    "V2JX0IC633", "LZK7P0X0LQ", "PGPVG5RF42", "JHDCXB62SA",
+    "1PUQV970LA", "C7IFP4VWIL", "H5C98XCENC", "FPALKDEL5T",
+    "O0V55ENOT0", "CCU1D7QXDT", "RYU8VSS4N5", "6X6I6TSUFG",
+    "2BIB99Z54V", "F3ATSRR5DQ", "TTK74SYYAN", "S22A588D75",
+    "QTLCWUS8NB", "ABQYUQCQS2", "1K3JTWHA05", "4HTOAI9YKO",
+    "88V3GKIVSF", "Y4FC3F9ZGS", "9JSXWO4LGH", "FINNMWJY0G",
+    "PD6XPNB80J", "8OLYIE2FRC"
+]
 # --------------------------------------
 # User Registration View
 # --------------------------------------
+from django.http import JsonResponse
+
 def register(request):
     """
     Handles user registration, including validation for unique email and BioID.
@@ -18,15 +36,34 @@ def register(request):
         password = make_password(request.POST['password'])
         bio_id = request.POST.get('bio_id', '')
 
-        # Validate unique email and BioID
-        if Petitioner.objects.filter(email=email).exists():
-            messages.error(request, 'Email already registered.')
-            return render(request, 'myapp/register.html')
-        if Petitioner.objects.filter(bio_id=bio_id).exists():
-            messages.error(request, 'BioID already registered.')
-            return render(request, 'myapp/register.html')
+        # Validate BioID
+        valid_bioids = [
+            # Add your valid BioIDs here
+        ]
+        if bio_id not in valid_bioids:
+            # If it's an Ajax request
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': 'Invalid BioID. Please enter a valid BioID.'})
+            else:
+                messages.error(request, 'Invalid BioID. Please enter a valid BioID.')
+                return render(request, 'myapp/register.html')
 
-        # Create new petitioner
+        # Check if BioID or email is already in use
+        if Petitioner.objects.filter(bio_id=bio_id).exists():
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': 'This BioID has already been registered.'})
+            else:
+                messages.error(request, 'This BioID has already been registered.')
+                return render(request, 'myapp/register.html')
+
+        if Petitioner.objects.filter(email=email).exists():
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': 'This email has already been registered.'})
+            else:
+                messages.error(request, 'This email has already been registered.')
+                return render(request, 'myapp/register.html')
+
+        # Save the petitioner
         Petitioner.objects.create(
             email=email,
             full_name=full_name,
@@ -34,11 +71,13 @@ def register(request):
             password=password,
             bio_id=bio_id
         )
-        messages.success(request, 'Registration successful. Please log in.')
-        return redirect('login')
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': 'Registration successful. Please log in.'})
+        else:
+            messages.success(request, 'Registration successful. Please log in.')
+            return redirect('login')
 
     return render(request, 'myapp/register.html')
-
 
 # --------------------------------------
 # User Login View
@@ -59,7 +98,6 @@ def login(request):
             return render(request, 'myapp/login.html')
 
         if check_password(password, user.password):
-            # Set session data
             request.session['user_id'] = user.id
             request.session['user_email'] = user.email
             request.session['is_admin'] = (email == 'admin@petition.parliament.sr')  # Admin check
@@ -68,7 +106,6 @@ def login(request):
 
         messages.error(request, 'Invalid email or password.')
     return render(request, 'myapp/login.html')
-
 
 # --------------------------------------
 # Petitioner Dashboard
@@ -100,7 +137,9 @@ def dashboard(request):
         'query': query,
     })
 
-
+# --------------------------------------
+# Create Petition View
+# --------------------------------------
 def create_petition(request):
     """
     Allows the user to create a new petition.
@@ -122,7 +161,9 @@ def create_petition(request):
 
     return redirect('dashboard')
 
-
+# --------------------------------------
+# Sign Petition View
+# --------------------------------------
 def sign_petition(request):
     """
     Allows the user to sign a petition.
@@ -148,31 +189,26 @@ def sign_petition(request):
         messages.success(request, 'Thank you for signing the petition!')
     return redirect('dashboard')
 
-
 # --------------------------------------
-# Admin Dashboard
+# Admin Dashboard View
 # --------------------------------------
 def admin_dashboard(request):
     """
-    Displays the admin dashboard with all petitions, including analytics.
+    Displays the admin dashboard with all petitions, analytics, and pagination.
     """
     if not request.session.get('is_admin', False):
         return redirect('login')
 
-    # Fetch all petitions
     petitions = Petition.objects.all()
 
-    # Analytics
     total_petitions = petitions.count()
     total_open_petitions = petitions.filter(status='open').count()
     total_closed_petitions = petitions.filter(status='closed').count()
 
-    # Search functionality
     query = request.GET.get('q', '')
     if query:
         petitions = petitions.filter(title__icontains=query)
 
-    # Filter by status
     status_filter = request.GET.get('status', '')
     if status_filter:
         petitions = petitions.filter(status=status_filter)
@@ -191,7 +227,9 @@ def admin_dashboard(request):
         'status_filter': status_filter,
     })
 
-
+# --------------------------------------
+# Close Petition View
+# --------------------------------------
 def close_petition(request):
     """
     Allows the admin to close a petition and provide a response.
@@ -211,7 +249,6 @@ def close_petition(request):
         messages.success(request, 'Petition closed successfully.')
     return redirect('admin_dashboard')
 
-
 # --------------------------------------
 # User Logout View
 # --------------------------------------
@@ -222,3 +259,4 @@ def logout(request):
     request.session.flush()
     messages.info(request, 'You have been logged out.')
     return redirect('login')
+

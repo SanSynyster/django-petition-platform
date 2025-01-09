@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib import messages
+from django.core.paginator import Paginator
 from .models import Petitioner, Petition, Signature
 
 # --------------------------------------
@@ -161,7 +162,7 @@ def admin_dashboard(request):
     # Fetch all petitions
     petitions = Petition.objects.all()
 
-    # Calculate analytics
+    # Analytics
     total_petitions = petitions.count()
     total_open_petitions = petitions.filter(status='open').count()
     total_closed_petitions = petitions.filter(status='closed').count()
@@ -176,9 +177,13 @@ def admin_dashboard(request):
     if status_filter:
         petitions = petitions.filter(status=status_filter)
 
-    # Pass analytics and filtered petitions to the template
+    # Pagination
+    paginator = Paginator(petitions, 10)  # Show 10 petitions per page
+    page_number = request.GET.get('page')
+    petitions_page = paginator.get_page(page_number)
+
     return render(request, 'myapp/admin_dashboard.html', {
-        'petitions': petitions,
+        'petitions': petitions_page,
         'total_petitions': total_petitions,
         'total_open_petitions': total_open_petitions,
         'total_closed_petitions': total_closed_petitions,

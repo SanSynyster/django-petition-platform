@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from .models import Petitioner, Petition, Signature
 
-# List of valid BioIDs (fill this list with valid BioIDs)
+# List of valid BioIDs 
 VALID_BIOIDS = [
     "K1YL8VA2HG", "V30EPKZQI2", "QJXQOUPTH9", "CET8NUAE09", 
     "BZW5WWDMUY", "7DMPYAZAP2", "O3WJFGR5WE", "GOYWJVDA8A", 

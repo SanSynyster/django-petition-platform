@@ -77,7 +77,7 @@ class Signature(models.Model):
     def __str__(self):
         return f"Signature by {self.petitioner.email} for {self.petition.title}"
 
-# Item Model (from your existing setup)
+# Item Model (from our existing setup)
 class Item(models.Model):
     name = models.CharField(max_length=100, null=False, blank=False)
     description = models.TextField(null=True, blank=True)

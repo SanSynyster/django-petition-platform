@@ -227,6 +227,7 @@ def admin_dashboard(request):
         'status_filter': status_filter,
     })
 
+
 # --------------------------------------
 # Close Petition View
 # --------------------------------------

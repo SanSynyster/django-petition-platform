@@ -125,8 +125,15 @@ STATIC_URL = '/static/'
 
 # Add the path to your static directory
 STATICFILES_DIRS = [
-    BASE_DIR / "static",  # Ensure the "static" directory is in your project root
+    BASE_DIR / "static",  
 ]
+
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+]
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
